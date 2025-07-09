@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Configuración inicial
+# Configuración de la página
 st.set_page_config(page_title="Análisis de Luminarias", layout="wide")
 st.title("📊 Análisis de Base Capital - Luminarias LED")
 
@@ -27,7 +27,8 @@ if archivo:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
             df['AÑO DE ACTIVACIÓN'] = pd.to_numeric(df['AÑO DE ACTIVACIÓN'], errors='coerce')
-            df = df[df['AÑO DE ACTIVACIÓN'].notna()].copy()
+            df = df[df['AÑO DE ACTIVACIÓN'].notna()]
+            df = df[df['AÑO DE ACTIVACIÓN'] % 1 == 0]  # solo enteros
             df['AÑO DE ACTIVACIÓN'] = df['AÑO DE ACTIVACIÓN'].astype(int)
 
             tipos = {
@@ -71,27 +72,36 @@ if archivo:
                     resumen[col] = resumen[col].apply(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
                 resumen["Cantidad de Activos"] = resumen["Cantidad de Activos"].apply(lambda x: f"{x:,}" if isinstance(x, (int, float)) else x)
 
-                st.dataframe(resumen.style.apply(resaltar, axis=1), use_container_width=True, height=300)
+                st.dataframe(resumen.style.apply(resaltar, axis=1), use_container_width=True, height=250)
 
-                # Guardar para gráfica final
-                resumen_sin_total = resumen[resumen["AÑO DE ACTIVACIÓN"] != "TOTAL"].copy()
-                resumen_sin_total["Categoría"] = nombre
-                resumen_sin_total["AÑO DE ACTIVACIÓN"] = resumen_sin_total["AÑO DE ACTIVACIÓN"].astype(int)
-                resumen_sin_total["Cantidad de Activos"] = resumen_sin_total["Cantidad de Activos"].apply(lambda x: int(x.replace(',', '')))
-                resumen_sin_total["Val.adq."] = resumen_sin_total["Val.adq."].apply(lambda x: float(x.replace(',', '')))
-                resumen_global.append(resumen_sin_total)
+                # ---- GRÁFICA ----
+                resumen_graf = resumen[resumen["AÑO DE ACTIVACIÓN"] != "TOTAL"].copy()
+                resumen_graf["Categoría"] = nombre
+                resumen_graf["AÑO DE ACTIVACIÓN"] = resumen_graf["AÑO DE ACTIVACIÓN"].astype(int)
+                resumen_graf["Cantidad de Activos"] = resumen_graf["Cantidad de Activos"].apply(lambda x: int(str(x).replace(',', '')))
+                resumen_graf["Val.adq."] = resumen_graf["Val.adq."].apply(lambda x: float(str(x).replace(',', '')))
 
-                # Gráfico individual
+                resumen_global.append(resumen_graf)
+
+                # 🎛 Selectores personalizados
+                st.markdown("### 📈 Gráfica de evolución")
+                valor = st.selectbox(f"Selecciona qué valor mostrar para {nombre}", ["Cantidad de Activos", "Val.adq."], key=nombre)
+                años = st.multiselect(f"Años a incluir ({nombre})", sorted(resumen_graf["AÑO DE ACTIVACIÓN"].unique()), default=sorted(resumen_graf["AÑO DE ACTIVACIÓN"].unique()), key=nombre+"años")
+                data_filtrada = resumen_graf[resumen_graf["AÑO DE ACTIVACIÓN"].isin(años)]
+
                 fig = px.line(
-                    resumen_sin_total,
+                    data_filtrada,
                     x="AÑO DE ACTIVACIÓN",
-                    y=["Cantidad de Activos", "Val.adq."],
+                    y=valor,
                     markers=True,
-                    title=f"Evolución - {nombre}"
+                    title=f"{valor} a lo largo de los años - {nombre}",
+                    hover_name="Categoría"
                 )
+                fig.update_traces(mode='lines+markers')
+                fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Gráfico comparativo final
+            # GRÁFICO FINAL COMPARATIVO
             if resumen_global:
                 df_final = pd.concat(resumen_global)
                 fig_comp = px.line(
@@ -100,11 +110,13 @@ if archivo:
                     y="Cantidad de Activos",
                     color="Categoría",
                     markers=True,
-                    title="📈 Comparativo de Cantidad de Activos por Categoría"
+                    title="📊 Comparativo de Cantidad de Activos por Categoría",
+                    hover_name="Categoría"
                 )
+                fig_comp.update_layout(height=400)
                 st.plotly_chart(fig_comp, use_container_width=True)
 
     except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
+        st.error(f"❌ Error al procesar el archivo: {str(e)}")
 else:
     st.info("📂 Sube un archivo Excel con tus luminarias para comenzar.")
