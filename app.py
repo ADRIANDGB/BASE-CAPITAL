@@ -45,10 +45,28 @@ if archivo is not None:
             df["Val.cont."] = pd.to_numeric(df["Val.cont."], errors='coerce')
             df["Amo acum."] = pd.to_numeric(df["Amo acum."], errors='coerce')
 
-            # Mostrar estadística básica por año
-            st.subheader("Resumen por Año de Activación")
-            resumen = df.groupby("AÑO DE ACTIVACIÓN")[["Val.adq.", "Amo acum.", "Val.cont."]].sum()
-            st.dataframe(resumen, use_container_width=True)
+            # Filtro por tipo de luminaria
+tipos_disponibles = df["Descripción SG"].dropna().unique().tolist()
+tipo_filtrado = st.selectbox("Filtrar por tipo de luminaria", sorted(tipos_disponibles))
+
+# Filtrar DataFrame según selección
+df_filtrado = df[df["Descripción SG"] == tipo_filtrado]
+
+# Agrupar por AÑO DE ACTIVACIÓN
+st.subheader(f"📅 Resumen por Año de Activación - {tipo_filtrado}")
+resumen = (
+    df_filtrado.groupby("AÑO DE ACTIVACIÓN")[["Val.adq.", "Amo acum.", "Val.cont."]]
+    .sum()
+    .reset_index()
+)
+
+# Formatear los números con separadores de miles
+resumen_formateado = resumen.copy()
+for col in ["Val.adq.", "Amo acum.", "Val.cont."]:
+    resumen_formateado[col] = resumen_formateado[col].apply(lambda x: f"{x:,.2f}")
+
+st.dataframe(resumen_formateado, use_container_width=True)
+
 
     except Exception as e:
         st.error(f"❌ Ocurrió un error al leer el archivo: {str(e)}")
