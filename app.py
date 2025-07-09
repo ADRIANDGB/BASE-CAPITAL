@@ -137,6 +137,48 @@ if archivo is not None:
                 fig_comp.update_traces(mode="lines+markers")
                 st.plotly_chart(fig_comp, use_container_width=True)
 
+ 
+            
+            
+            
+            
+            
+            
+            
+            
+            # ✅ Botón para exportar PDF
+            if st.button("📤 Exportar reporte a PDF"):
+                pdf_path = "reporte_luminarias.pdf"
+                with PdfPages(pdf_path) as pdf:
+                    for nombre, df_r in resumenes_por_tipo.items():
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        for col in ["Cantidad de Activos", "Val.adq.", "Amo acum.", "Val.cont."]:
+                            ax.plot(df_r["AÑO DE ACTIVACIÓN"], df_r[col], marker='o', label=col)
+                        ax.set_title(f"{nombre} - Evolución de variables")
+                        ax.set_xlabel("AÑO DE ACTIVACIÓN")
+                        ax.set_ylabel("Valor")
+                        ax.legend()
+                        ax.grid(True)
+                        pdf.savefig(fig)
+                        plt.close()
+
+                        # Tabla resumen como imagen
+                        df_table = df_r.copy()
+                        fig, ax = plt.subplots(figsize=(10, 2))
+                        ax.axis('tight')
+                        ax.axis('off')
+                        table = ax.table(cellText=np.round(df_table.select_dtypes(include=[np.number]).values, 2),
+                                         colLabels=[col for col in df_table.columns if df_table[col].dtype != 'O'],
+                                         loc='center', cellLoc='center')
+                        table.auto_set_font_size(False)
+                        table.set_fontsize(8)
+                        table.scale(1.2, 1.2)
+                        pdf.savefig(fig)
+                        plt.close()
+
+                with open(pdf_path, "rb") as f:
+                    st.download_button("📥 Descargar reporte PDF", f, file_name="reporte_luminarias.pdf")
+
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {str(e)}")
 else:
