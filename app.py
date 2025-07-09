@@ -74,7 +74,7 @@ if archivo:
 
                 st.dataframe(resumen.style.apply(resaltar, axis=1), use_container_width=True, height=250)
 
-                # ---- GRÁFICA ----
+                # ---- GRÁFICAS ----
                 resumen_graf = resumen[resumen["AÑO DE ACTIVACIÓN"] != "TOTAL"].copy()
                 resumen_graf["Categoría"] = nombre
                 resumen_graf["AÑO DE ACTIVACIÓN"] = resumen_graf["AÑO DE ACTIVACIÓN"].astype(int)
@@ -101,20 +101,45 @@ if archivo:
                 fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
 
-            # GRÁFICO FINAL COMPARATIVO
+                # 🥧 Pie chart
+                st.markdown("### 🥧 Distribución por Año (Pie Chart)")
+                fig_pie = px.pie(
+                    data_filtrada,
+                    names="AÑO DE ACTIVACIÓN",
+                    values=valor,
+                    title=f"Distribución de {valor} por Año - {nombre}"
+                )
+                st.plotly_chart(fig_pie, use_container_width=True)
+
+            # GRÁFICOS COMPARATIVOS FINALES
             if resumen_global:
                 df_final = pd.concat(resumen_global)
+
+                st.subheader("📊 Comparativo de todos los tipos por cantidad de activos")
                 fig_comp = px.line(
                     df_final,
                     x="AÑO DE ACTIVACIÓN",
                     y="Cantidad de Activos",
                     color="Categoría",
                     markers=True,
-                    title="📊 Comparativo de Cantidad de Activos por Categoría",
+                    title="Comparativo de Cantidad de Activos por Categoría",
                     hover_name="Categoría"
                 )
                 fig_comp.update_layout(height=400)
                 st.plotly_chart(fig_comp, use_container_width=True)
+
+                st.subheader("💰 Comparativo de todos los tipos por valor de adquisición")
+                fig_val = px.line(
+                    df_final,
+                    x="AÑO DE ACTIVACIÓN",
+                    y="Val.adq.",
+                    color="Categoría",
+                    markers=True,
+                    title="Comparativo de Valor de Adquisición por Categoría",
+                    hover_name="Categoría"
+                )
+                fig_val.update_layout(height=400)
+                st.plotly_chart(fig_val, use_container_width=True)
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {str(e)}")
