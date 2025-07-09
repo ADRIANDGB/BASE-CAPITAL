@@ -85,7 +85,7 @@ if archivo is not None:
                     "Val.cont.": f"{totales['Val.cont.']:,.2f}"
                 }
 
-                resumen_total = resumen.append(totales_formateados, ignore_index=True)
+                resumen_total = pd.concat([resumen, pd.DataFrame([totales_formateados])], ignore_index=True)
 
                 def resaltar_total(fila):
                     if fila["AÑO DE ACTIVACIÓN"] == "TOTAL":
