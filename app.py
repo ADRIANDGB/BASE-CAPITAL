@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
 #------------------------------------------------------------------------------------------------------
 # Fase 1: Configuración inicial
@@ -31,18 +30,20 @@ if archivo is not None:
         if columnas_faltantes:
             st.error(f"❌ Faltan columnas: {columnas_faltantes}")
         else:
-            # Normalizar texto en Descripción SG
+            # Limpiar columna Descripción SG
             df["Descripción SG"] = df["Descripción SG"].astype(str).str.upper().str.strip()
             df["Descripción SG"] = df["Descripción SG"].replace("NAN", None)
 
-            # Convertir a número columnas clave
+            # Convertir numéricos
             for col in ["AÑO DE ACTIVACIÓN", "Val.adq.", "Val.cont.", "Amo acum."]:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
             # Fase 2: Resumen por tipo
             tipos = {
                 "LED ALTA INTENSIDAD": df["Descripción SG"] == "LED ALTA INTENSIDAD",
-                "LED BAJA INTENSIDAD": df["Descripción SG"] == "LUMINARIA BAJA INTENSIDAD",
+                "LED BAJA INTENSIDAD": df["Descripción SG"].isin([
+                    "LUMINARIA BAJA INTENSIDAD", "LED BAJA INTENSIDAD"
+                ]),
                 "Sin categoría (vacío)": df["Descripción SG"].isna()
             }
 
@@ -61,31 +62,24 @@ if archivo is not None:
 
                 resumen = resumen.rename(columns={"Activo fijo": "Cantidad de Activos"})
 
-                # Formato de miles
-                for col in ["Val.adq.", "Amo acum.", "Val.cont."]:
-                    resumen[col] = resumen[col].apply(lambda x: f"{x:,.2f}")
-
-                # Mostrar tabla sin totales aún
-                st.dataframe(resumen, use_container_width=True)
-
-                # Agregar fila de totales generales
+                # Totales
                 totales = {
                     "AÑO DE ACTIVACIÓN": "TOTAL",
                     "Cantidad de Activos": resumen["Cantidad de Activos"].sum(),
-                    "Val.adq.": resumen["Val.adq."].replace({',': ''}, regex=True).astype(float).sum(),
-                    "Amo acum.": resumen["Amo acum."].replace({',': ''}, regex=True).astype(float).sum(),
-                    "Val.cont.": resumen["Val.cont."].replace({',': ''}, regex=True).astype(float).sum(),
+                    "Val.adq.": resumen["Val.adq."].sum(),
+                    "Amo acum.": resumen["Amo acum."].sum(),
+                    "Val.cont.": resumen["Val.cont."].sum()
                 }
 
-                totales_formateados = {
-                    "AÑO DE ACTIVACIÓN": "TOTAL",
-                    "Cantidad de Activos": int(totales["Cantidad de Activos"]),
-                    "Val.adq.": f"{totales['Val.adq.']:,.2f}",
-                    "Amo acum.": f"{totales['Amo acum.']:,.2f}",
-                    "Val.cont.": f"{totales['Val.cont.']:,.2f}"
-                }
+                resumen = pd.concat([resumen, pd.DataFrame([totales])], ignore_index=True)
 
-                resumen_total = pd.concat([resumen, pd.DataFrame([totales_formateados])], ignore_index=True)
+                # Formato de miles y total visual
+                for col in ["Val.adq.", "Amo acum.", "Val.cont."]:
+                    resumen[col] = resumen[col].apply(lambda x: f"{x:,.2f}")
+
+                resumen["Cantidad de Activos"] = resumen["Cantidad de Activos"].apply(
+                    lambda x: f"{int(x):,}" if pd.notnull(x) else x
+                )
 
                 def resaltar_total(fila):
                     if fila["AÑO DE ACTIVACIÓN"] == "TOTAL":
@@ -93,7 +87,7 @@ if archivo is not None:
                     else:
                         return [''] * len(fila)
 
-                st.dataframe(resumen_total.style.apply(resaltar_total, axis=1), use_container_width=True)
+                st.dataframe(resumen.style.apply(resaltar_total, axis=1), use_container_width=True)
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {str(e)}")
