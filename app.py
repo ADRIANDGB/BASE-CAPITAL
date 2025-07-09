@@ -24,7 +24,7 @@ if archivo is not None:
         # Validar columnas requeridas
         columnas_esperadas = [
             'Activo fijo', 'Subnúmero', 'Capitalizado el', 'Denominación del activo fijo',
-            'Número de serie', 'Denominación del activo fijo_1', 'Cantidad',
+            'Número de serie', 'Denominación del activo fijo', 'Cantidad',
             'Amortización normal', 'Val.adq.', 'Amo acum.', 'Val.cont.',
             'Moneda', 'Unidad de Retiro', 'Descripción SG', 'AÑO DE ACTIVACIÓN', '2025'
         ]
