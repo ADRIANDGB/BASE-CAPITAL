@@ -1,6 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages  # <--- ESTA LÍNEA ES CLAVE
+import numpy as np
+import os
 
 st.set_page_config(page_title="Análisis de Luminarias", layout="wide")
 st.title("📊 Análisis de Base Capital - Luminarias LED")
