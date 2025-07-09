@@ -22,7 +22,7 @@ if archivo is not None:
             'Activo fijo', 'Subnúmero', 'Capitalizado el', 'Denominación del activo fijo',
             'Número de serie', 'Denominación del activo fijo', 'Cantidad',
             'Amortización normal', 'Val.adq.', 'Amo acum.', 'Val.cont.',
-            'Moneda', 'Unidad de Retiro', 'Descripción SG', 'AÑO DE ACTIVACIÓN', '2025'
+            'Moneda', 'Unidad de Retiro', 'Descripción SG', 'AÑO DE ACTIVACIÓN'
         ]
         columnas_faltantes = [col for col in columnas_esperadas if col not in df.columns]
 
