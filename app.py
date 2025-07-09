@@ -36,7 +36,7 @@ if archivo is not None:
             ## Fase 2: Generar resumen por tipo
             tipos = {
                 "LED ALTA INTENSIDAD": df["Descripción SG"] == "LED ALTA INTENSIDAD",
-                "LED BAJA INTENSIDAD": df["Descripción SG"] == "LED BAJA INTENSIDAD",
+                "LED BAJA INTENSIDAD": df["Descripción SG"] == "LUMINARIA BAJA INTENSIDAD",
                 "Sin categoría (vacío)": df["Descripción SG"].isna()
             }
 
@@ -44,14 +44,27 @@ if archivo is not None:
                 st.subheader(f"🔦 Resumen por Año - {nombre}")
                 df_filtrado = df[filtro]
 
-                resumen = (
-                    df_filtrado.groupby("AÑO DE ACTIVACIÓN").agg({
-                        "Activo fijo": "count",
-                        "Val.adq.": "sum",
-                        "Amo acum.": "sum",
-                        "Val.cont.": "sum"
-                    }).reset_index()
-                )
+           # LIMPIEZA PREVIA DE AÑO DE ACTIVACIÓN
+df["AÑO DE ACTIVACIÓN"] = df["AÑO DE ACTIVACIÓN"].astype(str).str.strip()
+df["AÑO DE ACTIVACIÓN"] = pd.to_numeric(df["AÑO DE ACTIVACIÓN"], errors="coerce")
+
+# ELIMINAMOS FILAS SIN AÑO DE ACTIVACIÓN
+df = df[df["AÑO DE ACTIVACIÓN"].notna()]
+df["AÑO DE ACTIVACIÓN"] = df["AÑO DE ACTIVACIÓN"].astype(int)
+
+# AGRUPACIÓN NORMAL
+resumen = (
+    df_filtrado.groupby("AÑO DE ACTIVACIÓN", dropna=False)
+    .agg({
+        "Activo fijo": "count",
+        "Val.adq.": "sum",
+        "Amo acum.": "sum",
+        "Val.cont.": "sum"
+    })
+    .reset_index()
+    .sort_values(by="AÑO DE ACTIVACIÓN")
+)
+
 
                 resumen = resumen.rename(columns={"Activo fijo": "Cantidad de Activos"})
 
