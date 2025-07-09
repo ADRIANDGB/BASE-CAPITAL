@@ -39,7 +39,7 @@ if archivo is not None:
             ## Fase 2: Generar resumen por tipo
             tipos = {
                 "LED ALTA INTENSIDAD": df["Descripción SG"] == "LED ALTA INTENSIDAD",
-                "LED BAJA INTENSIDAD": df["Descripción SG"] == "LED BAJA INTENSIDAD",
+                "LED BAJA INTENSIDAD": df["Descripción SG"] == "LUMINARIA BAJA INTENSIDAD",
                 "Sin categoría (vacío)": df["Descripción SG"].isna()
             }
 
