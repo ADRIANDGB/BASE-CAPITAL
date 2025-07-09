@@ -49,10 +49,13 @@ if archivo is not None:
                 st.subheader(f"🔦 Resumen por Año - {nombre}")
                 df_filtrado = df[filtro]
 
-                resumen = (
-                    df_filtrado.groupby("AÑO DE ACTIVACIÓN")[["Val.adq.", "Amo acum.", "Val.cont."]]
-                    .sum()
-                    .reset_index()
+              resumen = (
+                    df_filtrado.groupby("AÑO DE ACTIVACIÓN").agg({
+                        "Activo fijo": "count",
+                        "Val.adq.": "sum",
+                        "Amo acum.": "sum",
+                        "Val.cont.": "sum"
+                    }).reset_index()
                 )
 
                 # Formato bonito
