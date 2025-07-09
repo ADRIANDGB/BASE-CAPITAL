@@ -10,21 +10,21 @@ archivo = st.file_uploader("📁 Sube tu archivo Excel", type=["xlsx"])
 if archivo is not None:
     try:
         df = pd.read_excel(archivo, engine="openpyxl")
+
+        # Renombrar columnas duplicadas
         df.columns = [f"{col}_{i}" if df.columns.tolist().count(col) > 1 else col 
                       for i, col in enumerate(df.columns)]
 
-        columnas_necesarias = [
-            'Activo fijo', 'Descripción SG', 'Val.adq.', 'Amo acum.', 'Val.cont.', 'AÑO DE ACTIVACIÓN', 'Cantidad'
-        ]
+        columnas_necesarias = ['Cantidad', 'Descripción SG', 'Val.adq.', 'Amo acum.', 'Val.cont.', 'AÑO DE ACTIVACIÓN']
         faltantes = [col for col in columnas_necesarias if col not in df.columns]
         if faltantes:
             st.error(f"❌ Faltan columnas necesarias: {faltantes}")
         else:
-            for col in ['Val.adq.', 'Amo acum.', 'Val.cont.', 'Cantidad']:
+            for col in ['Cantidad', 'Val.adq.', 'Amo acum.', 'Val.cont.']:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
             df['AÑO DE ACTIVACIÓN'] = pd.to_numeric(df['AÑO DE ACTIVACIÓN'], errors='coerce')
-            df = df[df['AÑO DE ACTIVACIÓN'].notna()].copy()
+            df = df[df['AÑO DE ACTIVACIÓN'].notna()]
             df['AÑO DE ACTIVACIÓN'] = df['AÑO DE ACTIVACIÓN'].astype(int)
 
             tipos = {
@@ -33,6 +33,7 @@ if archivo is not None:
                 "Sin categoría (vacío)": df["Descripción SG"].isna()
             }
 
+            all_resumenes = {}
             for nombre, filtro in tipos.items():
                 st.subheader(f"🔦 Resumen por Año - {nombre}")
                 df_filtrado = df[filtro].copy()
@@ -46,7 +47,7 @@ if archivo is not None:
                     "Val.adq.": "sum",
                     "Amo acum.": "sum",
                     "Val.cont.": "sum"
-                }).reset_index().sort_values("AÑO DE ACTIVACIÓN")
+                }).reset_index()
 
                 resumen = resumen.rename(columns={"Cantidad": "Cantidad de Activos"})
 
@@ -74,39 +75,45 @@ if archivo is not None:
 
                 st.dataframe(
                     resumen.style.apply(resaltar_total, axis=1),
-                    use_container_width=True,
-                    height=300
+                    use_container_width=True
                 )
 
-                if not resumen[resumen["AÑO DE ACTIVACIÓN"] != "TOTAL"].empty:
-                    datos_grafico = resumen[resumen["AÑO DE ACTIVACIÓN"] != "TOTAL"].copy()
-                    datos_grafico["AÑO DE ACTIVACIÓN"] = datos_grafico["AÑO DE ACTIVACIÓN"].astype(int)
+                # Gráficas interactivas por tipo
+                st.markdown("### 📈 Gráfica de evolución")
 
-                    st.subheader("📉 Gráfica de evolución")
+                df_numerico = df_filtrado.groupby("AÑO DE ACTIVACIÓN").agg({
+                    "Cantidad": "sum",
+                    "Val.adq.": "sum",
+                    "Amo acum.": "sum",
+                    "Val.cont.": "sum"
+                }).reset_index()
 
-                    opciones = ["Cantidad de Activos", "Val.adq.", "Amo acum.", "Val.cont."]
-                    seleccionadas = st.multiselect(f"Selecciona variables para {nombre}", opciones, default=["Cantidad de Activos"])
+                df_numerico = df_numerico[df_numerico["AÑO DE ACTIVACIÓN"] % 1 == 0]
+                df_numerico = df_numerico.sort_values("AÑO DE ACTIVACIÓN")
 
-                    if seleccionadas:
-                        fig = px.line(
-                            datos_grafico,
-                            x="AÑO DE ACTIVACIÓN",
-                            y=seleccionadas,
-                            markers=True,
-                            labels={"value": "Valor", "AÑO DE ACTIVACIÓN": "Año"},
-                            title=f"Comparación de variables seleccionadas - {nombre}"
-                        )
-                        st.plotly_chart(fig, use_container_width=True)
+                # Cálculo de porcentajes
+                for col in ["Cantidad", "Val.adq.", "Amo acum.", "Val.cont."]:
+                    total = df_numerico[col].sum()
+                    df_numerico[col + " (%)"] = df_numerico[col] / total * 100
 
-                    st.subheader("🍩 Distribución por Año (Pie Chart)")
-                    fig_pie = px.pie(
-                        datos_grafico,
-                        names="AÑO DE ACTIVACIÓN",
-                        values="Cantidad de Activos",
-                        title=f"Distribución de Activos por Año - {nombre}",
-                        hole=0.3
+                variables = st.multiselect(
+                    f"Selecciona variables para graficar - {nombre}",
+                    ["Cantidad", "Val.adq.", "Amo acum.", "Val.cont."],
+                    default=["Cantidad", "Val.adq."]
+                )
+
+                if variables:
+                    fig = px.line(
+                        df_numerico,
+                        x="AÑO DE ACTIVACIÓN",
+                        y=variables,
+                        markers=True,
+                        labels={"value": "Valor", "AÑO DE ACTIVACIÓN": "Año"},
+                        hover_data={f"{var} (%)": True for var in variables},
+                        title=f"📊 Evolución de {' y '.join(variables)} - {nombre}"
                     )
-                    st.plotly_chart(fig_pie, use_container_width=True)
+                    fig.update_traces(mode="lines+markers")
+                    st.plotly_chart(fig, use_container_width=True)
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {str(e)}")
