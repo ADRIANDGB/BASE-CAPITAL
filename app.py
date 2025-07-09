@@ -1,11 +1,6 @@
 import streamlit as st
 import pandas as pd
 
-
-
-
-
-
 ## Fase 1: Configuración inicial
 st.set_page_config(page_title="Análisis de Luminarias", layout="wide")
 st.title("📊 Análisis de Base Capital - Luminarias LED")
@@ -38,7 +33,7 @@ if archivo is not None:
             for col in ["AÑO DE ACTIVACIÓN", "Val.adq.", "Val.cont.", "Amo acum."]:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-            ## Fase 2: Generar resumen por tipo (alta, baja y vacío)
+            ## Fase 2: Generar resumen por tipo
             tipos = {
                 "LED ALTA INTENSIDAD": df["Descripción SG"] == "LED ALTA INTENSIDAD",
                 "LED BAJA INTENSIDAD": df["Descripción SG"] == "LED BAJA INTENSIDAD",
@@ -49,7 +44,7 @@ if archivo is not None:
                 st.subheader(f"🔦 Resumen por Año - {nombre}")
                 df_filtrado = df[filtro]
 
-              resumen = (
+                resumen = (
                     df_filtrado.groupby("AÑO DE ACTIVACIÓN").agg({
                         "Activo fijo": "count",
                         "Val.adq.": "sum",
@@ -57,6 +52,8 @@ if archivo is not None:
                         "Val.cont.": "sum"
                     }).reset_index()
                 )
+
+                resumen = resumen.rename(columns={"Activo fijo": "Cantidad de Activos"})
 
                 # Formato bonito
                 for col in ["Val.adq.", "Amo acum.", "Val.cont."]:
