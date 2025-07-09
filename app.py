@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 
+
+------------------------------------------------------------------------------------------------------
+
 ## Fase 1: Configuración inicial
 st.set_page_config(page_title="Análisis de Luminarias", layout="wide")
 st.title("📊 Análisis de Base Capital - Luminarias LED")
@@ -66,3 +69,64 @@ if archivo is not None:
 
 else:
     st.info("📂 Sube un archivo Excel con tus luminarias para comenzar.")
+
+
+
+
+------------------------------------------------------------------------------------------------------
+##FASE 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
