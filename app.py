@@ -34,9 +34,7 @@ if archivo is not None:
 
             # Selector de años únicos
             años_disponibles = sorted(df['AÑO DE ACTIVACIÓN'].unique())
-            años_seleccionados = st.multiselect("📅 Selecciona los AÑOS DE ACTIVACIÓN a analizar", años_disponibles, default=años_disponibles)
-
-            df = df[df["AÑO DE ACTIVACIÓN"].isin(años_seleccionados)]
+          
 
             # Clasificación por tipo
             tipos = {
