@@ -1,3 +1,6 @@
+import streamlit as st
+import pandas as pd
+
 ## Fase 1: Configuración inicial
 st.set_page_config(page_title="Análisis de Luminarias", layout="wide")
 st.title("📊 Análisis de Base Capital - Luminarias LED")
