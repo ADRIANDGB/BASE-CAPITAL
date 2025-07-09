@@ -33,7 +33,8 @@ if archivo is not None:
                 "Sin categoría (vacío)": df["Descripción SG"].isna()
             }
 
-            all_resumenes = {}
+            resumenes_por_tipo = {}
+
             for nombre, filtro in tipos.items():
                 st.subheader(f"🔦 Resumen por Año - {nombre}")
                 df_filtrado = df[filtro].copy()
@@ -50,7 +51,9 @@ if archivo is not None:
                 }).reset_index()
 
                 resumen = resumen.rename(columns={"Cantidad": "Cantidad de Activos"})
+                resumenes_por_tipo[nombre] = resumen.copy()
 
+                # Totales
                 totales = {
                     "AÑO DE ACTIVACIÓN": "TOTAL",
                     "Cantidad de Activos": resumen["Cantidad de Activos"].sum(),
@@ -60,6 +63,7 @@ if archivo is not None:
                 }
                 resumen = pd.concat([resumen, pd.DataFrame([totales])], ignore_index=True)
 
+                # Formateo
                 for col in ["Val.adq.", "Amo acum.", "Val.cont."]:
                     resumen[col] = resumen[col].apply(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
 
@@ -75,36 +79,26 @@ if archivo is not None:
 
                 st.dataframe(
                     resumen.style.apply(resaltar_total, axis=1),
-                    use_container_width=True
+                    use_container_width=True,
+                    height=300
                 )
 
                 # Gráficas interactivas por tipo
                 st.markdown("### 📈 Gráfica de evolución")
+                df_graf = resumenes_por_tipo[nombre].copy()
 
-                df_numerico = df_filtrado.groupby("AÑO DE ACTIVACIÓN").agg({
-                    "Cantidad": "sum",
-                    "Val.adq.": "sum",
-                    "Amo acum.": "sum",
-                    "Val.cont.": "sum"
-                }).reset_index()
-
-                df_numerico = df_numerico[df_numerico["AÑO DE ACTIVACIÓN"] % 1 == 0]
-                df_numerico = df_numerico.sort_values("AÑO DE ACTIVACIÓN")
-
-                # Cálculo de porcentajes
-                for col in ["Cantidad", "Val.adq.", "Amo acum.", "Val.cont."]:
-                    total = df_numerico[col].sum()
-                    df_numerico[col + " (%)"] = df_numerico[col] / total * 100
+                for col in ["Cantidad de Activos", "Val.adq.", "Amo acum.", "Val.cont."]:
+                    df_graf[col + " (%)"] = df_graf[col] / df_graf[col].sum() * 100
 
                 variables = st.multiselect(
                     f"Selecciona variables para graficar - {nombre}",
-                    ["Cantidad", "Val.adq.", "Amo acum.", "Val.cont."],
-                    default=["Cantidad", "Val.adq."]
+                    ["Cantidad de Activos", "Val.adq.", "Amo acum.", "Val.cont."],
+                    default=["Cantidad de Activos", "Val.adq."]
                 )
 
                 if variables:
                     fig = px.line(
-                        df_numerico,
+                        df_graf,
                         x="AÑO DE ACTIVACIÓN",
                         y=variables,
                         markers=True,
@@ -114,6 +108,34 @@ if archivo is not None:
                     )
                     fig.update_traces(mode="lines+markers")
                     st.plotly_chart(fig, use_container_width=True)
+
+            # 🔄 COMPARATIVA FINAL
+            st.markdown("---")
+            st.header("📊 Comparativa general entre tipos")
+
+            tipo_var = st.selectbox(
+                "Selecciona la variable a comparar entre tipos:",
+                ["Cantidad de Activos", "Val.adq.", "Amo acum.", "Val.cont."]
+            )
+
+            df_comparativo = pd.DataFrame()
+            for tipo, df_tipo in resumenes_por_tipo.items():
+                temp = df_tipo.copy()
+                temp["Tipo"] = tipo
+                df_comparativo = pd.concat([df_comparativo, temp], ignore_index=True)
+
+            if not df_comparativo.empty:
+                fig_comp = px.line(
+                    df_comparativo,
+                    x="AÑO DE ACTIVACIÓN",
+                    y=tipo_var,
+                    color="Tipo",
+                    markers=True,
+                    labels={"AÑO DE ACTIVACIÓN": "Año", tipo_var: "Valor"},
+                    title=f"📈 Comparación entre tipos por '{tipo_var}'"
+                )
+                fig_comp.update_traces(mode="lines+markers")
+                st.plotly_chart(fig_comp, use_container_width=True)
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {str(e)}")
