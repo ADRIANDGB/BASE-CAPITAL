@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 
-#------------------------------------------------------------------------------------------------------
 # Fase 1: Configuración inicial
 st.set_page_config(page_title="Análisis de Luminarias", layout="wide")
 st.title("📊 Análisis de Base Capital - Luminarias LED")
@@ -14,6 +13,9 @@ if archivo is not None:
         # Leer Excel
         df = pd.read_excel(archivo, engine="openpyxl")
 
+        # Eliminar columna innecesaria llamada '2025' si existe
+        df = df.drop(columns=["2025"], errors="ignore")
+
         # Renombrar columnas duplicadas
         df.columns = [f"{col}_{i}" if df.columns.tolist().count(col) > 1 else col 
                       for i, col in enumerate(df.columns)]
@@ -23,27 +25,21 @@ if archivo is not None:
             'Activo fijo', 'Subnúmero', 'Capitalizado el', 'Denominación del activo fijo',
             'Número de serie', 'Denominación del activo fijo', 'Cantidad',
             'Amortización normal', 'Val.adq.', 'Amo acum.', 'Val.cont.',
-            'Moneda', 'Unidad de Retiro', 'Descripción SG', 'AÑO DE ACTIVACIÓN', '2025'
+            'Moneda', 'Unidad de Retiro', 'Descripción SG', 'AÑO DE ACTIVACIÓN'
         ]
         columnas_faltantes = [col for col in columnas_esperadas if col not in df.columns]
 
         if columnas_faltantes:
             st.error(f"❌ Faltan columnas: {columnas_faltantes}")
         else:
-            # Limpiar columna Descripción SG
-            df["Descripción SG"] = df["Descripción SG"].astype(str).str.upper().str.strip()
-            df["Descripción SG"] = df["Descripción SG"].replace("NAN", None)
-
-            # Convertir numéricos
+            # Convertir columnas numéricas
             for col in ["AÑO DE ACTIVACIÓN", "Val.adq.", "Val.cont.", "Amo acum."]:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-            # Fase 2: Resumen por tipo
+            # Definir tipos de luminarias
             tipos = {
                 "LED ALTA INTENSIDAD": df["Descripción SG"] == "LED ALTA INTENSIDAD",
-                "LED BAJA INTENSIDAD": df["Descripción SG"].isin([
-                    "LUMINARIA BAJA INTENSIDAD", "LED BAJA INTENSIDAD"
-                ]),
+                "LUMINARIA BAJA INTENSIDAD": df["Descripción SG"] == "LUMINARIA BAJA INTENSIDAD",
                 "Sin categoría (vacío)": df["Descripción SG"].isna()
             }
 
@@ -51,6 +47,7 @@ if archivo is not None:
                 st.subheader(f"🔦 Resumen por Año - {nombre}")
                 df_filtrado = df[filtro]
 
+                # Agrupar y resumir
                 resumen = (
                     df_filtrado.groupby("AÑO DE ACTIVACIÓN").agg({
                         "Activo fijo": "count",
@@ -59,35 +56,37 @@ if archivo is not None:
                         "Val.cont.": "sum"
                     }).reset_index()
                 )
-
                 resumen = resumen.rename(columns={"Activo fijo": "Cantidad de Activos"})
 
-                # Totales
-                totales = {
-                    "AÑO DE ACTIVACIÓN": "TOTAL",
-                    "Cantidad de Activos": resumen["Cantidad de Activos"].sum(),
-                    "Val.adq.": resumen["Val.adq."].sum(),
-                    "Amo acum.": resumen["Amo acum."].sum(),
-                    "Val.cont.": resumen["Val.cont."].sum()
-                }
+                # Agregar fila TOTAL
+                fila_total = pd.DataFrame({
+                    "AÑO DE ACTIVACIÓN": ["TOTAL"],
+                    "Cantidad de Activos": [resumen["Cantidad de Activos"].sum()],
+                    "Val.adq.": [resumen["Val.adq."].sum()],
+                    "Amo acum.": [resumen["Amo acum."].sum()],
+                    "Val.cont.": [resumen["Val.cont."].sum()],
+                })
 
-                resumen = pd.concat([resumen, pd.DataFrame([totales])], ignore_index=True)
+                resumen_total = pd.concat([resumen, fila_total], ignore_index=True)
 
-                # Formato de miles y total visual
+                # Formatear columnas numéricas con comas
                 for col in ["Val.adq.", "Amo acum.", "Val.cont."]:
-                    resumen[col] = resumen[col].apply(lambda x: f"{x:,.2f}")
-
-                resumen["Cantidad de Activos"] = resumen["Cantidad de Activos"].apply(
-                    lambda x: f"{int(x):,}" if pd.notnull(x) else x
+                    resumen_total[col] = resumen_total[col].apply(
+                        lambda x: f"{x:,.2f}" if pd.notnull(x) else "-"
+                    )
+                resumen_total["Cantidad de Activos"] = resumen_total["Cantidad de Activos"].apply(
+                    lambda x: f"{x:,}" if pd.notnull(x) else "-"
                 )
 
+                # Estilo con color para la fila TOTAL
                 def resaltar_total(fila):
-                    if fila["AÑO DE ACTIVACIÓN"] == "TOTAL":
-                        return ['background-color: #c7f5c1; font-weight: bold'] * len(fila)
-                    else:
-                        return [''] * len(fila)
+                    color = 'background-color: #d4edda; font-weight: bold;'
+                    return [color if fila["AÑO DE ACTIVACIÓN"] == "TOTAL" else "" for _ in fila]
 
-                st.dataframe(resumen.style.apply(resaltar_total, axis=1), use_container_width=True)
+                st.dataframe(
+                    resumen_total.style.apply(resaltar_total, axis=1),
+                    use_container_width=True
+                )
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {str(e)}")
