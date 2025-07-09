@@ -2,33 +2,30 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Configuración de la página
 st.set_page_config(page_title="Análisis de Luminarias", layout="wide")
 st.title("📊 Análisis de Base Capital - Luminarias LED")
 
 archivo = st.file_uploader("📁 Sube tu archivo Excel", type=["xlsx"])
 
-if archivo:
+if archivo is not None:
     try:
         df = pd.read_excel(archivo, engine="openpyxl")
 
-        # Renombrar columnas duplicadas
         df.columns = [f"{col}_{i}" if df.columns.tolist().count(col) > 1 else col 
                       for i, col in enumerate(df.columns)]
 
-        # Validar columnas necesarias
-        necesarias = ['Activo fijo', 'Descripción SG', 'Val.adq.', 'Amo acum.', 'Val.cont.', 'AÑO DE ACTIVACIÓN']
-        faltan = [col for col in necesarias if col not in df.columns]
-        if faltan:
-            st.error(f"❌ Faltan columnas: {faltan}")
+        columnas_necesarias = [
+            'Activo fijo', 'Descripción SG', 'Val.adq.', 'Amo acum.', 'Val.cont.', 'AÑO DE ACTIVACIÓN'
+        ]
+        faltantes = [col for col in columnas_necesarias if col not in df.columns]
+        if faltantes:
+            st.error(f"❌ Faltan columnas necesarias: {faltantes}")
         else:
-            # Preparar datos
             for col in ['Val.adq.', 'Amo acum.', 'Val.cont.']:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
             df['AÑO DE ACTIVACIÓN'] = pd.to_numeric(df['AÑO DE ACTIVACIÓN'], errors='coerce')
-            df = df[df['AÑO DE ACTIVACIÓN'].notna()]
-            df = df[df['AÑO DE ACTIVACIÓN'] % 1 == 0]  # solo enteros
+            df = df[df['AÑO DE ACTIVACIÓN'].notna()].copy()
             df['AÑO DE ACTIVACIÓN'] = df['AÑO DE ACTIVACIÓN'].astype(int)
 
             tipos = {
@@ -37,17 +34,19 @@ if archivo:
                 "Sin categoría (vacío)": df["Descripción SG"].isna()
             }
 
-            resumen_global = []
+            columnas_graficas = ["Cantidad de Activos", "Val.adq.", "Amo acum.", "Val.cont."]
+
+            comparativos = {}
 
             for nombre, filtro in tipos.items():
                 st.subheader(f"🔦 Resumen por Año - {nombre}")
-                df_tipo = df[filtro].copy()
+                df_filtrado = df[filtro].copy()
 
-                if df_tipo.empty:
+                if df_filtrado.empty:
                     st.warning("No hay datos para esta categoría.")
                     continue
 
-                resumen = df_tipo.groupby("AÑO DE ACTIVACIÓN").agg({
+                resumen = df_filtrado.groupby("AÑO DE ACTIVACIÓN").agg({
                     "Activo fijo": "count",
                     "Val.adq.": "sum",
                     "Amo acum.": "sum",
@@ -56,90 +55,56 @@ if archivo:
 
                 resumen = resumen.rename(columns={"Activo fijo": "Cantidad de Activos"})
 
-                total = {
+                totales = {
                     "AÑO DE ACTIVACIÓN": "TOTAL",
                     "Cantidad de Activos": resumen["Cantidad de Activos"].sum(),
                     "Val.adq.": resumen["Val.adq."].sum(),
                     "Amo acum.": resumen["Amo acum."].sum(),
                     "Val.cont.": resumen["Val.cont."].sum()
                 }
-                resumen = pd.concat([resumen, pd.DataFrame([total])], ignore_index=True)
-
-                def resaltar(fila):
-                    return ['background-color: #d4edda; font-weight: bold'] * len(fila) if fila["AÑO DE ACTIVACIÓN"] == "TOTAL" else [''] * len(fila)
+                resumen = pd.concat([resumen, pd.DataFrame([totales])], ignore_index=True)
 
                 for col in ["Val.adq.", "Amo acum.", "Val.cont."]:
                     resumen[col] = resumen[col].apply(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
-                resumen["Cantidad de Activos"] = resumen["Cantidad de Activos"].apply(lambda x: f"{x:,}" if isinstance(x, (int, float)) else x)
 
-                st.dataframe(resumen.style.apply(resaltar, axis=1), use_container_width=True, height=250)
-
-                # ---- GRÁFICAS ----
-                resumen_graf = resumen[resumen["AÑO DE ACTIVACIÓN"] != "TOTAL"].copy()
-                resumen_graf["Categoría"] = nombre
-                resumen_graf["AÑO DE ACTIVACIÓN"] = resumen_graf["AÑO DE ACTIVACIÓN"].astype(int)
-                resumen_graf["Cantidad de Activos"] = resumen_graf["Cantidad de Activos"].apply(lambda x: int(str(x).replace(',', '')))
-                resumen_graf["Val.adq."] = resumen_graf["Val.adq."].apply(lambda x: float(str(x).replace(',', '')))
-
-                resumen_global.append(resumen_graf)
-
-                # 🎛 Selectores personalizados
-                st.markdown("### 📈 Gráfica de evolución")
-                valor = st.selectbox(f"Selecciona qué valor mostrar para {nombre}", ["Cantidad de Activos", "Val.adq."], key=nombre)
-                años = st.multiselect(f"Años a incluir ({nombre})", sorted(resumen_graf["AÑO DE ACTIVACIÓN"].unique()), default=sorted(resumen_graf["AÑO DE ACTIVACIÓN"].unique()), key=nombre+"años")
-                data_filtrada = resumen_graf[resumen_graf["AÑO DE ACTIVACIÓN"].isin(años)]
-
-                fig = px.line(
-                    data_filtrada,
-                    x="AÑO DE ACTIVACIÓN",
-                    y=valor,
-                    markers=True,
-                    title=f"{valor} a lo largo de los años - {nombre}",
-                    hover_name="Categoría"
+                resumen["Cantidad de Activos"] = resumen["Cantidad de Activos"].apply(
+                    lambda x: f"{x:,}" if isinstance(x, (int, float)) else x
                 )
-                fig.update_traces(mode='lines+markers')
-                fig.update_layout(height=400)
+
+                def resaltar_total(fila):
+                    if fila["AÑO DE ACTIVACIÓN"] == "TOTAL":
+                        return ['background-color: #d4edda; font-weight: bold'] * len(fila)
+                    else:
+                        return [''] * len(fila)
+
+                st.dataframe(
+                    resumen.style.apply(resaltar_total, axis=1),
+                    use_container_width=False, height=250
+                )
+
+                # Gráficas
+                st.markdown("### 🖌️ Gráfica de evolución")
+                valor = st.selectbox(f"Selecciona qué valor mostrar para {nombre}", columnas_graficas, key=nombre)
+
+                resumen_graf = df_filtrado.groupby("AÑO DE ACTIVACIÓN")[valor].sum().reset_index()
+
+                fig = px.line(resumen_graf, x="AÑO DE ACTIVACIÓN", y=valor,
+                              title=f"{valor} a lo largo de los años - {nombre}", markers=True)
                 st.plotly_chart(fig, use_container_width=True)
 
-                # 🥧 Pie chart
-                st.markdown("### 🥧 Distribución por Año (Pie Chart)")
-                fig_pie = px.pie(
-                    data_filtrada,
-                    names="AÑO DE ACTIVACIÓN",
-                    values=valor,
-                    title=f"Distribución de {valor} por Año - {nombre}"
-                )
+                # Pie Chart
+                st.markdown("### 🍌 Distribución por Año (Pie Chart)")
+                fig_pie = px.pie(resumen_graf, names="AÑO DE ACTIVACIÓN", values=valor, title=f"Distribución de {valor} por Año")
                 st.plotly_chart(fig_pie, use_container_width=True)
 
-            # GRÁFICOS COMPARATIVOS FINALES
-            if resumen_global:
-                df_final = pd.concat(resumen_global)
+                comparativos[nombre] = resumen_graf.set_index("AÑO DE ACTIVACIÓN")[valor]
 
-                st.subheader("📊 Comparativo de todos los tipos por cantidad de activos")
-                fig_comp = px.line(
-                    df_final,
-                    x="AÑO DE ACTIVACIÓN",
-                    y="Cantidad de Activos",
-                    color="Categoría",
-                    markers=True,
-                    title="Comparativo de Cantidad de Activos por Categoría",
-                    hover_name="Categoría"
-                )
-                fig_comp.update_layout(height=400)
-                st.plotly_chart(fig_comp, use_container_width=True)
-
-                st.subheader("💰 Comparativo de todos los tipos por valor de adquisición")
-                fig_val = px.line(
-                    df_final,
-                    x="AÑO DE ACTIVACIÓN",
-                    y="Val.adq.",
-                    color="Categoría",
-                    markers=True,
-                    title="Comparativo de Valor de Adquisición por Categoría",
-                    hover_name="Categoría"
-                )
-                fig_val.update_layout(height=400)
-                st.plotly_chart(fig_val, use_container_width=True)
+            if comparativos:
+                st.markdown("## 🌐 Comparativo entre tipos de luminarias")
+                df_comp = pd.DataFrame(comparativos).reset_index()
+                fig = px.line(df_comp, x="AÑO DE ACTIVACIÓN", y=df_comp.columns[1:],
+                              title="Comparación entre tipos por Año", markers=True)
+                st.plotly_chart(fig, use_container_width=True)
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {str(e)}")
