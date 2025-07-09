@@ -32,10 +32,6 @@ if archivo is not None:
             df = df[df['AÑO DE ACTIVACIÓN'].notna()].copy()
             df['AÑO DE ACTIVACIÓN'] = df['AÑO DE ACTIVACIÓN'].astype(int)
 
-            # Selector de años únicos
-            años_disponibles = sorted(df['AÑO DE ACTIVACIÓN'].unique())
-          
-
             # Clasificación por tipo
             tipos = {
                 "LED ALTA INTENSIDAD": df["Descripción SG"].str.upper() == "LED ALTA INTENSIDAD",
@@ -48,7 +44,7 @@ if archivo is not None:
                 df_filtrado = df[filtro].copy()
 
                 if df_filtrado.empty:
-                    st.warning("No hay datos para esta categoría con los años seleccionados.")
+                    st.warning("No hay datos para esta categoría.")
                     continue
 
                 resumen = df_filtrado.groupby("AÑO DE ACTIVACIÓN").agg({
@@ -70,7 +66,7 @@ if archivo is not None:
                 }
                 resumen = pd.concat([resumen, pd.DataFrame([totales])], ignore_index=True)
 
-                # Formateo
+                # Formatear números
                 for col in ["Val.adq.", "Amo acum.", "Val.cont."]:
                     resumen[col] = resumen[col].apply(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
 
@@ -78,17 +74,18 @@ if archivo is not None:
                     lambda x: f"{x:,}" if isinstance(x, (int, float)) else x
                 )
 
-               # Mostrar tabla con estilos (fila TOTAL en verde claro y negrita)
-def resaltar_total(fila):
-    if fila["AÑO DE ACTIVACIÓN"] == "TOTAL":
-        return ['background-color: #d4edda; font-weight: bold'] * len(fila)
-    else:
-        return [''] * len(fila)
+                # Estilo para la fila TOTAL
+                def resaltar_total(fila):
+                    if fila["AÑO DE ACTIVACIÓN"] == "TOTAL":
+                        return ['background-color: #d4edda; font-weight: bold'] * len(fila)
+                    else:
+                        return [''] * len(fila)
 
-st.dataframe(
-    resumen.style.apply(resaltar_total, axis=1),
-    use_container_width=True
-)
+                # Mostrar tabla con estilo
+                st.dataframe(
+                    resumen.style.apply(resaltar_total, axis=1),
+                    use_container_width=True
+                )
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {str(e)}")
