@@ -29,10 +29,14 @@ if archivo is not None:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
             df['AÑO DE ACTIVACIÓN'] = pd.to_numeric(df['AÑO DE ACTIVACIÓN'], errors='coerce')
-
-            # Asegurar que no se pierdan los años válidos (como 2025)
             df = df[df['AÑO DE ACTIVACIÓN'].notna()].copy()
             df['AÑO DE ACTIVACIÓN'] = df['AÑO DE ACTIVACIÓN'].astype(int)
+
+            # Selector de años únicos
+            años_disponibles = sorted(df['AÑO DE ACTIVACIÓN'].unique())
+            años_seleccionados = st.multiselect("📅 Selecciona los AÑOS DE ACTIVACIÓN a analizar", años_disponibles, default=años_disponibles)
+
+            df = df[df["AÑO DE ACTIVACIÓN"].isin(años_seleccionados)]
 
             # Clasificación por tipo
             tipos = {
@@ -46,7 +50,7 @@ if archivo is not None:
                 df_filtrado = df[filtro].copy()
 
                 if df_filtrado.empty:
-                    st.warning("No hay datos para esta categoría.")
+                    st.warning("No hay datos para esta categoría con los años seleccionados.")
                     continue
 
                 resumen = df_filtrado.groupby("AÑO DE ACTIVACIÓN").agg({
@@ -68,7 +72,7 @@ if archivo is not None:
                 }
                 resumen = pd.concat([resumen, pd.DataFrame([totales])], ignore_index=True)
 
-                # Aplicar formato de miles
+                # Formateo
                 for col in ["Val.adq.", "Amo acum.", "Val.cont."]:
                     resumen[col] = resumen[col].apply(lambda x: f"{x:,.2f}" if isinstance(x, (int, float)) else x)
 
@@ -76,7 +80,7 @@ if archivo is not None:
                     lambda x: f"{x:,}" if isinstance(x, (int, float)) else x
                 )
 
-                # Mostrar tabla con estilo
+                # Mostrar tabla con estilos
                 st.dataframe(
                     resumen.style.apply(
                         lambda x: ['background-color: #d4edda; font-weight: bold' if v == "TOTAL" else '' for v in x],
