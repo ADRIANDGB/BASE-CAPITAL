@@ -78,14 +78,17 @@ if archivo is not None:
                     lambda x: f"{x:,}" if isinstance(x, (int, float)) else x
                 )
 
-                # Mostrar tabla con estilos
-                st.dataframe(
-                    resumen.style.apply(
-                        lambda x: ['background-color: #d4edda; font-weight: bold' if v == "TOTAL" else '' for v in x],
-                        axis=1, subset=["AÑO DE ACTIVACIÓN"]
-                    ),
-                    use_container_width=True
-                )
+               # Mostrar tabla con estilos (fila TOTAL en verde claro y negrita)
+def resaltar_total(fila):
+    if fila["AÑO DE ACTIVACIÓN"] == "TOTAL":
+        return ['background-color: #d4edda; font-weight: bold'] * len(fila)
+    else:
+        return [''] * len(fila)
+
+st.dataframe(
+    resumen.style.apply(resaltar_total, axis=1),
+    use_container_width=True
+)
 
     except Exception as e:
         st.error(f"❌ Error al procesar el archivo: {str(e)}")
